@@ -13,6 +13,8 @@
 using namespace cv;
 
 static void cannyDemo();
+static void laplacianDemo();
+static void scharrDemo();
 static void gaussianDiff();
 static Mat zoomout(Mat &src);
 static void thresholdDemo();
@@ -54,9 +56,98 @@ int main(int argc, const char * argv[]) {
 //    imshow("hline", dst);
 //    waitKey(0);
     
-    cannyDemo();
     
+//    VideoCapture capture;
+//    capture.open(0);
+//    while (capture.isOpened()) {
+//        Mat frame;
+//        capture >> frame;
+//        Mat dst;
+//        bilateralFilter(frame, dst, 5, 75, 75);
+//        imshow("capture", dst);
+//
+//        int key = waitKey(10);
+//        if (key == 27) {
+//            break;
+//        }
+//    }
+    
+    scharrDemo();
     return 0;
+}
+
+
+static void scharrDemo() {
+    String path = "/Users/mash5/Downloads/1.jpeg";
+    
+    Mat img = imread(path);
+    
+    Mat img_gray;
+    cvtColor(img, img_gray, COLOR_BGR2GRAY);
+    // 先滤波
+    GaussianBlur(img_gray, img_gray, Size(3,3), 0);
+    imshow("Image Gray", img_gray);
+    
+    Mat dst_x, abs_dst_x;
+    Scharr(img_gray, dst_x, CV_16S, 1, 0);
+    convertScaleAbs(dst_x, abs_dst_x);
+    
+    Mat dst_y, abs_dst_y;
+    Scharr(img_gray, dst_y, CV_16S, 0, 1);
+    convertScaleAbs(dst_y, abs_dst_y);
+    
+    Mat dst;
+    addWeighted(abs_dst_x, 0.5, abs_dst_y, 0.5, 0, dst);
+    
+    imshow("Scharr", dst);
+    
+    waitKey(0);
+}
+
+// 拉普拉斯
+static void laplacianDemo() {
+    String path = "/Users/mash5/Downloads/1.jpeg";
+    
+    Mat img = imread(path);
+    
+    Mat img_gray;
+    cvtColor(img, img_gray, COLOR_BGR2GRAY);
+    // 先滤波
+    GaussianBlur(img_gray, img_gray, Size(3,3), 0);
+//    // 提高对比度
+//    convertScaleAbs(img_gray, img_gray, 2, -100);
+    imshow("Image Gray", img_gray);
+    
+    Mat dst;
+    /*
+     Laplacian二阶导数
+     函数原型：
+     void Laplacian( InputArray src, OutputArray dst, int ddepth, int ksize = 1, double scale = 1, double delta = 0, int borderType = BORDER_DEFAULT);
+     参数详解：
+     src，源图像，单通道8位图像。
+     dst，输出图像，和原图像一样的类型和尺寸。
+     ddepth，输出图像的深度。
+     ksize，用于计算二阶导数的滤波器的孔径尺寸，大小必须为正奇数，且有默认值1.
+     scale，比例因子，有默认值0。
+     delta，结果存入目标图像之前可选的delta值, 有默认值0
+     */
+    Laplacian(img_gray, dst, CV_16S, 3, 1, 0);
+    
+    // 转化为8位图像
+    convertScaleAbs(dst, dst);
+    
+//    // 开运算，去白点。
+//    Mat element = getStructuringElement(MORPH_RECT, Size(3,3), Point(-1, -1));
+//    morphologyEx(dst, dst, MORPH_OPEN, element);
+    
+    imshow("laplacian", dst);
+    
+//    // 原图减拉普拉斯
+//    subtract(img_gray, dst, dst);
+//    imshow("gray - laplacian", dst);
+    
+    waitKey(0);
+    
 }
 
 // 边缘检测
@@ -102,9 +193,8 @@ static void cannyDemo() {
      dst(I) = abs(src(I)*scale + shift)
      */
     convertScaleAbs(dstXY, dstXY);
-    
-    threshold(dstXY, dstXY, 50, 255, THRESH_TOZERO);
-    threshold(dstXY, dstXY, 120, 255, THRESH_TRUNC);
+//    threshold(dstXY, dstXY, 50, 255, THRESH_TOZERO);
+//    threshold(dstXY, dstXY, 120, 255, THRESH_TRUNC);
     imshow("filter2D xy diff", dstXY);
     
     /*
@@ -126,9 +216,6 @@ static void cannyDemo() {
     convertScaleAbs(dstY, dstY);
     
     addWeighted(dstX, 0.5, dstY, 0.5, 0, dstXY);
-    
-    threshold(dstXY, dstXY, 50, 255, THRESH_TOZERO);
-    threshold(dstXY, dstXY, 120, 255, THRESH_TRUNC);
     imshow("Sobel xy diff", dstXY);
     
     
