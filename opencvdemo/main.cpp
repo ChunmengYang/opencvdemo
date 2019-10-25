@@ -12,6 +12,7 @@
 
 using namespace cv;
 
+static void cannyDemo();
 static void gaussianDiff();
 static Mat zoomout(Mat &src);
 static void thresholdDemo();
@@ -53,8 +54,103 @@ int main(int argc, const char * argv[]) {
 //    imshow("hline", dst);
 //    waitKey(0);
     
-    gaussianDiff();
+    cannyDemo();
+    
     return 0;
+}
+
+// 边缘检测
+static void cannyDemo() {
+    String path = "/Users/mash5/Downloads/1.jpeg";
+    
+    Mat img = imread(path);
+    
+    Mat img_gray;
+    cvtColor(img, img_gray, COLOR_BGR2GRAY);
+    // 先滤波
+    GaussianBlur(img_gray, img_gray, Size(3,3), 0);
+    imshow("Image Gray", img_gray);
+    
+    Mat dstX;
+    Mat kernelX = (Mat_<char>(3, 3) << -1, 0, 1, -2, 0, 2, -1, 0, 1);
+    filter2D(img_gray, dstX, CV_16S, kernelX);
+    
+    Mat dstY;
+    Mat kernelY = (Mat_<char>(3, 3) << -1, -2, -1, 0, 0, 0, 1, 2, 1);
+    filter2D(img_gray, dstY, CV_16S, kernelY);
+    
+    int width = dstX.cols;
+    int height = dstX.rows;
+    Mat dstXY = Mat(height, width, dstX.type());
+    for (int row = 0; row < height; row++) {
+        for (int col = 0; col < width; col++) {
+            int gX = dstX.at<short>(row, col);
+            int gY = dstY.at<short>(row, col);
+            dstXY.at<short>(row, col) = abs(gX) + abs(gY);//sqrt(pow(gX, 2) + pow(gY, 2));
+        }
+    }
+    /*
+     convertScaleAbs函数是OpenCV中的函数，使用线性变换转换输入数组元素成8位无符号整型。
+     函数原型：
+     void convertScaleAbs(InputArray src, OutputArray dst, double alpha = 1, double beta = 0);
+     参数含义：
+     src，源图像
+     dst，输出图像(深度为 8u).
+     scale，乘数因子.
+     shift，原图像元素按比例缩放后添加的值。
+     用于实现对整个图像数组中的每一个元素，进行如下操作：
+     dst(I) = abs(src(I)*scale + shift)
+     */
+    convertScaleAbs(dstXY, dstXY);
+    
+    threshold(dstXY, dstXY, 50, 255, THRESH_TOZERO);
+    threshold(dstXY, dstXY, 120, 255, THRESH_TRUNC);
+    imshow("filter2D xy diff", dstXY);
+    
+    /*
+     Sobel函数使用扩展的Sobel算子，来计算一阶、二阶、三阶或混合图像的差分
+     函数原型：
+     void Sobel( InputArray src, OutputArray dst, int ddepth, int dx, int dy, int ksize = 3, double scale = 1, double delta = 0, int borderType = BORDER_DEFAULT );
+     参数详解：
+     src，源图像。
+     dst，输出图像。
+     ddepth，输出图像的深度。
+     dx，x方向的差分阶数。
+     dy，y方向的差分阶数。
+     ksize，Sobel核的大小，默认3，必须取1、3、5、7.
+     */
+    Sobel(img_gray, dstX, CV_16S, 1, 0, 3);
+    convertScaleAbs(dstX, dstX);
+    
+    Sobel(img_gray, dstY, CV_16S, 0, 1, 3);
+    convertScaleAbs(dstY, dstY);
+    
+    addWeighted(dstX, 0.5, dstY, 0.5, 0, dstXY);
+    
+    threshold(dstXY, dstXY, 50, 255, THRESH_TOZERO);
+    threshold(dstXY, dstXY, 120, 255, THRESH_TRUNC);
+    imshow("Sobel xy diff", dstXY);
+    
+    
+    Mat dst;
+    /*
+     函数原型：
+     void Canny( InputArray image, OutputArray edges, double threshold1, double threshold2, int apertureSize = 3, bool L2gradient = false);
+     参数详解：
+     image，源图像，需要为单通道8位图像。
+     edges，输出图像，和原图像一样的类型和尺寸。
+     threshold1，第一个滞后性阈值。
+     threshold2，第二个滞后性阈值。
+     apertureSize，表示应用Sobel算子的孔径大小，默认为3.
+     需要注意的是，阈值1和阈值2两者中较小的值用于边缘连接，较大的值用来控制强边缘的初始段，推荐高低阈值比在2:1到3:1之间。
+     (1) 如果值大于maxVal，则处理为边界
+     (2) 如果值minVal<梯度值<maxVal，再检查是否挨着其他边界点，如果旁边没有边界点，则丢弃，如果连着确定的边界点，则也认为其为边界点。
+     (3) 梯度值<minVal，舍弃。
+     */
+    Canny(img_gray, dst, 50, 120, 3);
+    imshow("Canny", dst);
+    
+    waitKey(0);
 }
 
 // 高斯差
@@ -81,6 +177,7 @@ static void gaussianDiff() {
 
 // 降低一倍采样
 static Mat zoomout(Mat &src) {
+//    先高斯滤波，再删除奇/偶数行列
 //    Mat temp;
 //    GaussianBlur(src, temp, Size(5,5), 0);
 //    Mat dst = Mat::zeros(temp.rows / 2, temp.cols / 2, temp.type());
