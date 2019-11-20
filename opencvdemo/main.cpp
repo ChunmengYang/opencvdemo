@@ -11,7 +11,9 @@
 #include "morphology.hpp"
 
 using namespace cv;
+using namespace std;
 
+static void houghLinesDemo();
 static void cannyDemo();
 static void laplacianDemo();
 static void scharrDemo();
@@ -31,14 +33,30 @@ static void contrastDemo();
 
 int main(int argc, const char * argv[]) {
     // insert code here...
-//    String path = "/Users/mash5/Downloads/1.jpeg";
+//    String path = "/Users/mash5/Downloads/12.jfif";
 //
 //    Mat img = imread(path);
 //    imshow("Image", img);
-    
+//    imwrite("/Users/mash5/Downloads/10-6.jpg", img);
+//    
 //    Mat img_gray;
 //    cvtColor(img, img_gray, COLOR_BGR2GRAY);
 //    imshow("Image Gray", img_gray);
+//    imwrite("/Users/mash5/Downloads/10-4.jpg", img_gray);
+   
+//    // 二值化图像
+//    Mat img_binary;
+//    threshold(img_gray, img_binary, 0, 255, THRESH_OTSU | THRESH_BINARY);
+//    imshow("Image Binary;", img_binary);
+//    imwrite("/Users/mash5/Downloads/10-4.jpg", img_binary);
+    
+    // 归一化数据
+//    Mat dst;
+//    normalize(img_gray, dst, 150, 255, NORM_MINMAX);
+//    imshow("Image Binary", dst);
+//    imwrite("/Users/mash5/Downloads/10-5.jpg", dst);
+    
+//    waitKey(0);
 //
 //    Mat dst;
 //    adaptiveThreshold(img_gray, dst, 255, ADAPTIVE_THRESH_GAUSSIAN_C, THRESH_BINARY, 11, 5);
@@ -56,26 +74,121 @@ int main(int argc, const char * argv[]) {
 //    imshow("hline", dst);
 //    waitKey(0);
     
+    Mat gray;//当前帧灰度图
+    Mat background;//背景图，格式为32位浮点
+    Mat backImage;//CV_8U格式背景图
+    Mat foreground;//前景图
+    Mat output;
+    double learningRate = 0.5;//学习率
+    int threshold = 30;//阈值，滤去扰动
     
-//    VideoCapture capture;
-//    capture.open(0);
-//    while (capture.isOpened()) {
-//        Mat frame;
-//        capture >> frame;
-//        Mat dst;
-//        bilateralFilter(frame, dst, 5, 75, 75);
-//        imshow("capture", dst);
-//
-//        int key = waitKey(10);
-//        if (key == 27) {
-//            break;
-//        }
-//    }
-    
-    scharrDemo();
+    VideoCapture capture;
+    capture.open(0);
+    while (capture.isOpened()) {
+        Mat frame;
+        capture >> frame;
+        cvtColor(frame, gray, CV_BGR2GRAY);
+        if (background.empty()) {
+            gray.convertTo(background, CV_32F);
+        }
+        background.convertTo(backImage, CV_8U);
+        absdiff(backImage, gray, foreground);
+        
+        cv::threshold(foreground, output, threshold, 255, THRESH_BINARY_INV);
+        accumulateWeighted(gray, background, learningRate);
+        
+//        imshow("frame", backImage);
+        imshow("result", output);
+
+        int key = waitKey(10);
+        if (key == 27) {
+            break;
+        }
+    }
+
     return 0;
 }
 
+static void houghLinesDemo() {
+    String path = "/Users/mash5/Downloads/3.jpeg";
+    
+    Mat img = imread(path);
+    Mat img_copy = img.clone();
+    
+    // 灰度图
+    Mat img_gray;
+    cvtColor(img, img_gray, COLOR_BGR2GRAY);
+    
+    // 边缘检测
+    Canny(img_gray, img_gray, 50, 200, 3);
+    
+    // 二值化图像
+    Mat img_binary;
+    threshold(img_gray, img_binary, 200, 255, THRESH_BINARY);
+    imshow("binary", img_binary);
+    
+    vector<Vec2f> lines;
+    /*
+     函数原型：
+     void HoughLines(InputArray image, OutputArray lines, double rho, double theta, int threshold, double srn=0, double stn=0, double min_theta=0, double max_theta=CV_PI)
+     参数详解：
+     image，输入图像，即源图像，需为8位的单通道二进制图像。
+     lines，经过调用HoughLines函数后储存了霍夫线变换检测到线条的输出矢量。
+     每一条线由具有两个元素的矢量表示，其中，是离坐标原点((0,0)（也就是图像的左上角）的距离。 是弧度线条旋转角度（0~垂直线，π/2~水平线）。
+     rho，以像素为单位的距离精度。另一种形容方式是直线搜索时的进步尺寸的单位半径。PS:Latex中/rho就表示。
+     theta，以弧度为单位的角度精度。另一种形容方式是直线搜索时的进步尺寸的单位角度。
+     threshold，累加平面的阈值参数，即识别某部分为图中的一条直线时它在累加平面中必须达到的值。大于阈值threshold的线段才可以被检测通过并返回到结果中。
+     srn，有默认值0。对于多尺度的霍夫变换，这是第三个参数进步尺寸rho的除数距离。粗略的累加器进步尺寸直接是第三个参数rho，而精确的累加器进步尺寸为rho/srn。
+     stn，有默认值0，对于多尺度霍夫变换，srn表示第四个参数进步尺寸的单位角度theta的除数距离。且如果srn和stn同时为0，就表示使用经典的霍夫变换。
+     否则，这两个参数应该都为正数。
+     min_theta，对于标准和多尺度Hough变换，检查线条的最小角度。必须介于0和max_theta之间。
+     max_theta, 对于标准和多尺度Hough变换，检查线条的最大角度。必须介于min_theta和CV_PI之间.
+     */
+    HoughLines(img_binary, lines, 1, CV_PI / 180, 100, 0, 0);
+    
+    for (int i = 0; i < lines.size(); i++) {
+        // 极径
+        float rho = lines[i][0];
+        // 极角
+        float theta = lines[i][1];
+        printf("rho %.2f, theta : %.2f\n", rho, theta);
+        
+        Point pt1, pt2;
+        double a = cos(theta), b = sin(theta);
+        double x0 = a * rho, y0 = b * rho;
+        pt1.x = cvRound(x0 + 1000 * (-b));
+        pt1.y = cvRound(y0 + 1000 * (a));
+        pt2.x = cvRound(x0 - 1000 * (-b));
+        pt2.y = cvRound(y0 - 1000 * (a));
+
+        line(img, pt1, pt2, Scalar(128, 128, 0), 1, LINE_AA);
+        
+    }
+    imshow("HoughLines", img);
+    
+    
+    vector<Vec4i> lines_p;
+    /*
+     函数原型：
+     void HoughLinesP(InputArray image, OutputArray lines, double rho, double theta, int threshold, double minLineLength=0, double maxLineGap=0)
+     参数详解：
+     image，输入图像，即源图像，需为8位的单通道二进制图像。
+     lines，经过调用HoughLinesP函数后后存储了检测到的线条的输出矢量，每一条线由具有四个元素的矢量(x_1,y_1, x_2, y_2）  表示，其中，(x_1, y_1)和(x_2, y_2) 是是每个检测到的线段的结束点。
+     rho，以像素为单位的距离精度。另一种形容方式是直线搜索时的进步尺寸的单位半径。
+     theta，以弧度为单位的角度精度。另一种形容方式是直线搜索时的进步尺寸的单位角度。
+     threshold，累加平面的阈值参数，即识别某部分为图中的一条直线时它在累加平面中必须达到的值。大于阈值threshold的线段才可以被检测通过并返回到结果中。
+     minLineLength，有默认值0，表示最低线段的长度，比这个设定参数短的线段就不能被显现出来。
+     maxLineGap，有默认值0，允许将同一行点与点之间连接起来的最大的距离。
+     */
+    HoughLinesP(img_binary, lines_p, 1, CV_PI / 180, 100, 0, 10);
+    for (int i = 0; i < lines_p.size(); i++) {
+        Vec4i l = lines_p[i];
+        line(img_copy, Point(l[0],l[1]), Point(l[2],l[3]), Scalar(128, 128, 0), 1, LINE_AA);
+    }
+    imshow("HoughLinesP", img_copy);
+    
+    waitKey(0);
+}
 
 static void scharrDemo() {
     String path = "/Users/mash5/Downloads/1.jpeg";
