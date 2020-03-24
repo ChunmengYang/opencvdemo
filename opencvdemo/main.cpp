@@ -10,411 +10,108 @@
 #include <opencv2/opencv.hpp>
 #include "morphology.hpp"
 
+
 using namespace cv;
 using namespace std;
 
-static void houghLinesDemo();
-static void cannyDemo();
-static void laplacianDemo();
-static void scharrDemo();
-static void gaussianDiff();
-static Mat zoomout(Mat &src);
-static void thresholdDemo();
-static void linearBlend();
-static void roiCopy();
-static void grayDemo();
-static void drawDemo();
-static void pixelOperation();
-static void blurDemo();
-static void erodeDemo();
-static void dilateDemo();
-static void contrastDemo();
+
+// 降低一倍采样
+static void zoomout(Mat &src);
+// 灰度图
+static void grayDemo(const String& path);
+// 阈值操作（二值图像）
+static void thresholdDemo(const String& path);
+// 绘制图形
+static void drawDemo(const String& path);
+// 图像元素操作
+static void pixelOperation(const String& path);
+// 几种滤波方式
+static void blurDemo(const String& path);
+// 图像腐蚀操作
+static void erodeDemo(const String& path);
+// 图像膨胀操作
+static void dilateDemo(const String& path);
+// 卷积操作
+static void contrastDemo(const String& path);
+// 图像的ROI区域选择与复制
+static void roiCopy(const String& path1, const String& path2);
+// 图像线性混合
+static void linearBlend(const String& path1, const String& path2);
+// 几种边缘检测方法
+static void scharrDemo(const String& path);
+static void laplacianDemo(const String& path);
+static void cannyDemo(const String& path);
+static void gaussianDiff(const String& path);
+
+// 霍夫直线检测
+static void houghLinesDemo(const String& path);
+// 视频移动目标捕获
+static void movingTargetCapture();
 
 
 int main(int argc, const char * argv[]) {
-    // insert code here...
-//    String path = "/Users/mash5/Downloads/12.jfif";
-//
-//    Mat img = imread(path);
-//    imshow("Image", img);
-//    imwrite("/Users/mash5/Downloads/10-6.jpg", img);
-//    
-//    Mat img_gray;
-//    cvtColor(img, img_gray, COLOR_BGR2GRAY);
-//    imshow("Image Gray", img_gray);
-//    imwrite("/Users/mash5/Downloads/10-4.jpg", img_gray);
-   
-//    // 二值化图像
-//    Mat img_binary;
-//    threshold(img_gray, img_binary, 0, 255, THRESH_OTSU | THRESH_BINARY);
-//    imshow("Image Binary;", img_binary);
-//    imwrite("/Users/mash5/Downloads/10-4.jpg", img_binary);
+    // morp("/Users/mash5/Downloads/1.jpeg");
     
-    // 归一化数据
-//    Mat dst;
-//    normalize(img_gray, dst, 150, 255, NORM_MINMAX);
-//    imshow("Image Binary", dst);
-//    imwrite("/Users/mash5/Downloads/10-5.jpg", dst);
+    movingTargetCapture();
     
-//    waitKey(0);
-//
-//    Mat dst;
-//    adaptiveThreshold(img_gray, dst, 255, ADAPTIVE_THRESH_GAUSSIAN_C, THRESH_BINARY, 11, 5);
-//    imshow("adaptiveThreshold", dst);
-//
-//    Mat wline = getStructuringElement(MORPH_RECT, Size(dst.cols / 16, 1), Point(-1, -1));
-//    Mat hline = getStructuringElement(MORPH_RECT, Size(1, dst.rows / 16), Point(-1, -1));
-//
-//    Mat temp;
-//    erode(dst, temp, wline);
-//    imshow("wline", temp);
-//
-//    dilate(temp, dst, hline);
-//    bitwise_not(dst, dst);
-//    imshow("hline", dst);
-//    waitKey(0);
-    
-    Mat gray;//当前帧灰度图
-    Mat background;//背景图，格式为32位浮点
-    Mat backImage;//CV_8U格式背景图
-    Mat foreground;//前景图
-    Mat output;
-    double learningRate = 0.5;//学习率
-    int threshold = 30;//阈值，滤去扰动
-    
-    VideoCapture capture;
-    capture.open(0);
-    while (capture.isOpened()) {
-        Mat frame;
-        capture >> frame;
-        cvtColor(frame, gray, CV_BGR2GRAY);
-        if (background.empty()) {
-            gray.convertTo(background, CV_32F);
-        }
-        background.convertTo(backImage, CV_8U);
-        absdiff(backImage, gray, foreground);
-        
-        cv::threshold(foreground, output, threshold, 255, THRESH_BINARY_INV);
-        accumulateWeighted(gray, background, learningRate);
-        
-//        imshow("frame", backImage);
-        imshow("result", output);
-
-        int key = waitKey(10);
-        if (key == 27) {
-            break;
-        }
-    }
-
     return 0;
 }
 
-static void houghLinesDemo() {
-    String path = "/Users/mash5/Downloads/3.jpeg";
+// 降低一倍采样
+static void zoomout(Mat &src) {
+    imshow("image", src);
     
-    Mat img = imread(path);
-    Mat img_copy = img.clone();
-    
-    // 灰度图
-    Mat img_gray;
-    cvtColor(img, img_gray, COLOR_BGR2GRAY);
-    
-    // 边缘检测
-    Canny(img_gray, img_gray, 50, 200, 3);
-    
-    // 二值化图像
-    Mat img_binary;
-    threshold(img_gray, img_binary, 200, 255, THRESH_BINARY);
-    imshow("binary", img_binary);
-    
-    vector<Vec2f> lines;
-    /*
-     函数原型：
-     void HoughLines(InputArray image, OutputArray lines, double rho, double theta, int threshold, double srn=0, double stn=0, double min_theta=0, double max_theta=CV_PI)
-     参数详解：
-     image，输入图像，即源图像，需为8位的单通道二进制图像。
-     lines，经过调用HoughLines函数后储存了霍夫线变换检测到线条的输出矢量。
-     每一条线由具有两个元素的矢量表示，其中，是离坐标原点((0,0)（也就是图像的左上角）的距离。 是弧度线条旋转角度（0~垂直线，π/2~水平线）。
-     rho，以像素为单位的距离精度。另一种形容方式是直线搜索时的进步尺寸的单位半径。PS:Latex中/rho就表示。
-     theta，以弧度为单位的角度精度。另一种形容方式是直线搜索时的进步尺寸的单位角度。
-     threshold，累加平面的阈值参数，即识别某部分为图中的一条直线时它在累加平面中必须达到的值。大于阈值threshold的线段才可以被检测通过并返回到结果中。
-     srn，有默认值0。对于多尺度的霍夫变换，这是第三个参数进步尺寸rho的除数距离。粗略的累加器进步尺寸直接是第三个参数rho，而精确的累加器进步尺寸为rho/srn。
-     stn，有默认值0，对于多尺度霍夫变换，srn表示第四个参数进步尺寸的单位角度theta的除数距离。且如果srn和stn同时为0，就表示使用经典的霍夫变换。
-     否则，这两个参数应该都为正数。
-     min_theta，对于标准和多尺度Hough变换，检查线条的最小角度。必须介于0和max_theta之间。
-     max_theta, 对于标准和多尺度Hough变换，检查线条的最大角度。必须介于min_theta和CV_PI之间.
-     */
-    HoughLines(img_binary, lines, 1, CV_PI / 180, 100, 0, 0);
-    
-    for (int i = 0; i < lines.size(); i++) {
-        // 极径
-        float rho = lines[i][0];
-        // 极角
-        float theta = lines[i][1];
-        printf("rho %.2f, theta : %.2f\n", rho, theta);
-        
-        Point pt1, pt2;
-        double a = cos(theta), b = sin(theta);
-        double x0 = a * rho, y0 = b * rho;
-        pt1.x = cvRound(x0 + 1000 * (-b));
-        pt1.y = cvRound(y0 + 1000 * (a));
-        pt2.x = cvRound(x0 - 1000 * (-b));
-        pt2.y = cvRound(y0 - 1000 * (a));
+    // 先高斯滤波，再删除奇/偶数行列
+    Mat temp;
+    GaussianBlur(src, temp, Size(5,5), 0);
+    Mat dst = Mat::zeros(temp.rows / 2, temp.cols / 2, temp.type());
 
-        line(img, pt1, pt2, Scalar(128, 128, 0), 1, LINE_AA);
-        
-    }
-    imshow("HoughLines", img);
-    
-    
-    vector<Vec4i> lines_p;
-    /*
-     函数原型：
-     void HoughLinesP(InputArray image, OutputArray lines, double rho, double theta, int threshold, double minLineLength=0, double maxLineGap=0)
-     参数详解：
-     image，输入图像，即源图像，需为8位的单通道二进制图像。
-     lines，经过调用HoughLinesP函数后后存储了检测到的线条的输出矢量，每一条线由具有四个元素的矢量(x_1,y_1, x_2, y_2）  表示，其中，(x_1, y_1)和(x_2, y_2) 是是每个检测到的线段的结束点。
-     rho，以像素为单位的距离精度。另一种形容方式是直线搜索时的进步尺寸的单位半径。
-     theta，以弧度为单位的角度精度。另一种形容方式是直线搜索时的进步尺寸的单位角度。
-     threshold，累加平面的阈值参数，即识别某部分为图中的一条直线时它在累加平面中必须达到的值。大于阈值threshold的线段才可以被检测通过并返回到结果中。
-     minLineLength，有默认值0，表示最低线段的长度，比这个设定参数短的线段就不能被显现出来。
-     maxLineGap，有默认值0，允许将同一行点与点之间连接起来的最大的距离。
-     */
-    HoughLinesP(img_binary, lines_p, 1, CV_PI / 180, 100, 0, 10);
-    for (int i = 0; i < lines_p.size(); i++) {
-        Vec4i l = lines_p[i];
-        line(img_copy, Point(l[0],l[1]), Point(l[2],l[3]), Scalar(128, 128, 0), 1, LINE_AA);
-    }
-    imshow("HoughLinesP", img_copy);
-    
-    waitKey(0);
-}
-
-static void scharrDemo() {
-    String path = "/Users/mash5/Downloads/1.jpeg";
-    
-    Mat img = imread(path);
-    
-    Mat img_gray;
-    cvtColor(img, img_gray, COLOR_BGR2GRAY);
-    // 先滤波
-    GaussianBlur(img_gray, img_gray, Size(3,3), 0);
-    imshow("Image Gray", img_gray);
-    
-    Mat dst_x, abs_dst_x;
-    Scharr(img_gray, dst_x, CV_16S, 1, 0);
-    convertScaleAbs(dst_x, abs_dst_x);
-    
-    Mat dst_y, abs_dst_y;
-    Scharr(img_gray, dst_y, CV_16S, 0, 1);
-    convertScaleAbs(dst_y, abs_dst_y);
-    
-    Mat dst;
-    addWeighted(abs_dst_x, 0.5, abs_dst_y, 0.5, 0, dst);
-    
-    imshow("Scharr", dst);
-    
-    waitKey(0);
-}
-
-// 拉普拉斯
-static void laplacianDemo() {
-    String path = "/Users/mash5/Downloads/1.jpeg";
-    
-    Mat img = imread(path);
-    
-    Mat img_gray;
-    cvtColor(img, img_gray, COLOR_BGR2GRAY);
-    // 先滤波
-    GaussianBlur(img_gray, img_gray, Size(3,3), 0);
-//    // 提高对比度
-//    convertScaleAbs(img_gray, img_gray, 2, -100);
-    imshow("Image Gray", img_gray);
-    
-    Mat dst;
-    /*
-     Laplacian二阶导数
-     函数原型：
-     void Laplacian( InputArray src, OutputArray dst, int ddepth, int ksize = 1, double scale = 1, double delta = 0, int borderType = BORDER_DEFAULT);
-     参数详解：
-     src，源图像，单通道8位图像。
-     dst，输出图像，和原图像一样的类型和尺寸。
-     ddepth，输出图像的深度。
-     ksize，用于计算二阶导数的滤波器的孔径尺寸，大小必须为正奇数，且有默认值1.
-     scale，比例因子，有默认值0。
-     delta，结果存入目标图像之前可选的delta值, 有默认值0
-     */
-    Laplacian(img_gray, dst, CV_16S, 3, 1, 0);
-    
-    // 转化为8位图像
-    convertScaleAbs(dst, dst);
-    
-//    // 开运算，去白点。
-//    Mat element = getStructuringElement(MORPH_RECT, Size(3,3), Point(-1, -1));
-//    morphologyEx(dst, dst, MORPH_OPEN, element);
-    
-    imshow("laplacian", dst);
-    
-//    // 原图减拉普拉斯
-//    subtract(img_gray, dst, dst);
-//    imshow("gray - laplacian", dst);
-    
-    waitKey(0);
-    
-}
-
-// 边缘检测
-static void cannyDemo() {
-    String path = "/Users/mash5/Downloads/1.jpeg";
-    
-    Mat img = imread(path);
-    
-    Mat img_gray;
-    cvtColor(img, img_gray, COLOR_BGR2GRAY);
-    // 先滤波
-    GaussianBlur(img_gray, img_gray, Size(3,3), 0);
-    imshow("Image Gray", img_gray);
-    
-    Mat dstX;
-    Mat kernelX = (Mat_<char>(3, 3) << -1, 0, 1, -2, 0, 2, -1, 0, 1);
-    filter2D(img_gray, dstX, CV_16S, kernelX);
-    
-    Mat dstY;
-    Mat kernelY = (Mat_<char>(3, 3) << -1, -2, -1, 0, 0, 0, 1, 2, 1);
-    filter2D(img_gray, dstY, CV_16S, kernelY);
-    
-    int width = dstX.cols;
-    int height = dstX.rows;
-    Mat dstXY = Mat(height, width, dstX.type());
+    int width = temp.cols;
+    int height = temp.rows;
+    int nc = temp.channels();
     for (int row = 0; row < height; row++) {
-        for (int col = 0; col < width; col++) {
-            int gX = dstX.at<short>(row, col);
-            int gY = dstY.at<short>(row, col);
-            dstXY.at<short>(row, col) = abs(gX) + abs(gY);//sqrt(pow(gX, 2) + pow(gY, 2));
+        if (!(row&1)) {
+            for (int col = 0; col < width; col++) {
+                if (!(col&1)) {
+                    if (nc == 1) {
+                        int g = temp.at<uchar>(row, col);
+                        dst.at<uchar>(row/2, col/2) = g;
+                    } else if (nc == 3) {
+                        int b = temp.at<Vec3b>(row, col)[0];
+                        int g = temp.at<Vec3b>(row, col)[1];
+                        int r = temp.at<Vec3b>(row, col)[2];
+                        dst.at<Vec3b>(row/2, col/2)[0] = b;
+                        dst.at<Vec3b>(row/2, col/2)[1] = g;
+                        dst.at<Vec3b>(row/2, col/2)[2] = r;
+                    }
+                }
+            }
         }
     }
-    /*
-     convertScaleAbs函数是OpenCV中的函数，使用线性变换转换输入数组元素成8位无符号整型。
-     函数原型：
-     void convertScaleAbs(InputArray src, OutputArray dst, double alpha = 1, double beta = 0);
-     参数含义：
-     src，源图像
-     dst，输出图像(深度为 8u).
-     scale，乘数因子.
-     shift，原图像元素按比例缩放后添加的值。
-     用于实现对整个图像数组中的每一个元素，进行如下操作：
-     dst(I) = abs(src(I)*scale + shift)
-     */
-    convertScaleAbs(dstXY, dstXY);
-//    threshold(dstXY, dstXY, 50, 255, THRESH_TOZERO);
-//    threshold(dstXY, dstXY, 120, 255, THRESH_TRUNC);
-    imshow("filter2D xy diff", dstXY);
+    imshow("image result", dst);
     
-    /*
-     Sobel函数使用扩展的Sobel算子，来计算一阶、二阶、三阶或混合图像的差分
-     函数原型：
-     void Sobel( InputArray src, OutputArray dst, int ddepth, int dx, int dy, int ksize = 3, double scale = 1, double delta = 0, int borderType = BORDER_DEFAULT );
-     参数详解：
-     src，源图像。
-     dst，输出图像。
-     ddepth，输出图像的深度。
-     dx，x方向的差分阶数。
-     dy，y方向的差分阶数。
-     ksize，Sobel核的大小，默认3，必须取1、3、5、7.
-     */
-    Sobel(img_gray, dstX, CV_16S, 1, 0, 3);
-    convertScaleAbs(dstX, dstX);
-    
-    Sobel(img_gray, dstY, CV_16S, 0, 1, 3);
-    convertScaleAbs(dstY, dstY);
-    
-    addWeighted(dstX, 0.5, dstY, 0.5, 0, dstXY);
-    imshow("Sobel xy diff", dstXY);
-    
-    
-    Mat dst;
-    /*
-     函数原型：
-     void Canny( InputArray image, OutputArray edges, double threshold1, double threshold2, int apertureSize = 3, bool L2gradient = false);
-     参数详解：
-     image，源图像，需要为单通道8位图像。
-     edges，输出图像，和原图像一样的类型和尺寸。
-     threshold1，第一个滞后性阈值。
-     threshold2，第二个滞后性阈值。
-     apertureSize，表示应用Sobel算子的孔径大小，默认为3.
-     需要注意的是，阈值1和阈值2两者中较小的值用于边缘连接，较大的值用来控制强边缘的初始段，推荐高低阈值比在2:1到3:1之间。
-     (1) 如果值大于maxVal，则处理为边界
-     (2) 如果值minVal<梯度值<maxVal，再检查是否挨着其他边界点，如果旁边没有边界点，则丢弃，如果连着确定的边界点，则也认为其为边界点。
-     (3) 梯度值<minVal，舍弃。
-     */
-    Canny(img_gray, dst, 50, 120, 3);
-    imshow("Canny", dst);
+    Mat dst1;
+    pyrDown(src, dst1);
+    imshow("image pyrDown", dst1);
     
     waitKey(0);
 }
 
-// 高斯差
-static void gaussianDiff() {
-    String path = "/Users/mash5/Downloads/1.jpeg";
-    
+
+// 灰度图
+static void grayDemo(const String& path) {
     Mat img = imread(path);
     imshow("Image", img);
     
-    Mat img_gray, g1, g2, dst;
+    Mat img_gray;
     cvtColor(img, img_gray, COLOR_BGR2GRAY);
+    imshow("Image Gray", img_gray);
     
-    GaussianBlur(img_gray, g1, Size(5, 5), 0, 0);
-    GaussianBlur(g1, g2, Size(5, 5), 0, 0);
-    // 高斯差
-    subtract(g1, g2, dst);
-    // 归一化数据
-    normalize(dst, dst, 255, 0, NORM_MINMAX);
-    
-    imshow("GaussianDiff", dst);
     waitKey(0);
-    
-}
-
-// 降低一倍采样
-static Mat zoomout(Mat &src) {
-//    先高斯滤波，再删除奇/偶数行列
-//    Mat temp;
-//    GaussianBlur(src, temp, Size(5,5), 0);
-//    Mat dst = Mat::zeros(temp.rows / 2, temp.cols / 2, temp.type());
-//
-//    int width = temp.cols;
-//    int height = temp.rows;
-//    int nc = temp.channels();
-//    for (int row = 0; row < height; row++) {
-//        if (!(row&1)) {
-//            for (int col = 0; col < width; col++) {
-//                if (!(col&1)) {
-//                    if (nc == 1) {
-//                        int g = temp.at<uchar>(row, col);
-//                        dst.at<uchar>(row/2, col/2) = g;
-//                    } else if (nc == 3) {
-//                        int b = temp.at<Vec3b>(row, col)[0];
-//                        int g = temp.at<Vec3b>(row, col)[1];
-//                        int r = temp.at<Vec3b>(row, col)[2];
-//                        dst.at<Vec3b>(row/2, col/2)[0] = b;
-//                        dst.at<Vec3b>(row/2, col/2)[1] = g;
-//                        dst.at<Vec3b>(row/2, col/2)[2] = r;
-//                    }
-//                }
-//            }
-//        }
-//    }
-    
-    Mat dst;
-    pyrDown(src, dst);
-    
-    return dst;
 }
 
 // 阈值操作（二值图像）
-static void thresholdDemo(){
-    String path = "/Users/mash5/Downloads/2.jpeg";
-    
+static void thresholdDemo(const String& path){
     Mat img = imread(path);
     Mat img_gray;
     cvtColor(img, img_gray, COLOR_BGR2GRAY);
@@ -462,81 +159,8 @@ static void thresholdDemo(){
     waitKey(0);
 }
 
-// 图像线性混合
-static void linearBlend() {
-    String path1 = "/Users/mash5/Downloads/1.jpeg";
-    String path2 = "/Users/mash5/Downloads/2.jpeg";
-    
-    Mat img1 = imread(path1);
-    Mat img2 = imread(path2);
-    Mat img3 = img1(Rect(10,10, img2.cols, img2.rows));
-    Mat img4;
-    /*
-     void addWeighted(InputArray src1, double alpha, InputArray src2, double beta, double gamma, OutputArray dst, int dtype = -1)
-     src1，表示需要加权的第一个数组，常常填一个Mat
-     alpha，表示第一个数组的权重
-     src2，表示第二个数组，需要和第一个数组拥有相同的尺寸和通道数
-     beta，第二个数组的权重值，值为1-alpha
-     gamma，一个加到权重总和上的标量值。
-     dst，输出的数组，和输入的两个数组拥有相同的尺寸和通道数dst = src1[I] * alpha + src2[I] * beta + gamma
-     dtype，输出阵列的可选深度，有默认值-1。
-     当两个输入数组具有相同深度时，这个参数设置为-1（默认值），即等同于src1.depth()。
-     */
-    addWeighted(img2, 0.5, img3, 0.5, 0, img4);
-    
-    imshow("Image addWeighted", img4);
-    waitKey(0);
-}
-
-// 图像的ROI区域选择与复制
-static void roiCopy() {
-    String path1 = "/Users/mash5/Downloads/1.jpeg";
-    String path2 = "/Users/mash5/Downloads/2.jpeg";
-    
-    Mat img1 = imread(path1);
-    Mat img2 = imread(path2);
-    
-    /*
-     Rect(x,y,width,height)//矩形框
-     Rect是一个矩形框。
-     x为起始列；
-     y为起始行；
-     width为宽度；
-     height为高度；
-     
-     Range(start,end)//感兴趣行列范围
-     Range是感兴趣起始行/列与终点行/列。
-     分别用上面两种方法表示图像img从（100,100）到（200,200）的区域为：
-     img(Rect(100, 100, 100, 100));
-     img(Range(100, 200), Range(100,200));
-     */
-    Mat img3 = img1(Rect(10,10, img2.cols, img2.rows));
-    imshow("Image ROI", img3);
-    
-    // 复制img2到ROI区域
-    img2.copyTo(img3, img2);
-    imshow("Image Copy", img1);
-    
-    waitKey(0);
-}
-
-// 灰度图
-static void grayDemo() {
-    String path = "/Users/mash5/Downloads/1.jpeg";
-    
-    Mat img = imread(path);
-    imshow("Image", img);
-    
-    Mat img_gray;
-    cvtColor(img, img_gray, COLOR_BGR2GRAY);
-    imshow("Image Gray", img_gray);
-    
-    waitKey(0);
-}
-
-// 绘图
-static void drawDemo() {
-    String path = "/Users/mash5/Downloads/2.jpeg";
+// 绘图图形
+static void drawDemo(const String& path) {
     Mat img = imread(path);
     
     /*
@@ -639,38 +263,35 @@ static void drawDemo() {
 }
 
 // 图像元素操作
-static void pixelOperation() {
-    String path = "/Users/mash5/Downloads/2.jpeg";
+static void pixelOperation(const String& path) {
     Mat img = imread(path);
-    
-    // 图像像素位非操作
-//    int width = img.cols;
-//    int height = img.rows;
-//    int nc = img.channels();
-//    for (int row = 0; row < height; row++) {
-//        for (int col = 0; col < width; col++) {
-//            if (nc == 1) {
-//                int temp = img.at<uchar>(row, col);
-//                img.at<uchar>(row, col) = 255 - temp;
-//            } else if (nc == 3) {
-//                int b = img.at<Vec3b>(row, col)[0];
-//                int g = img.at<Vec3b>(row, col)[1];
-//                int r = img.at<Vec3b>(row, col)[2];
-//                img.at<Vec3b>(row, col)[0] = 255 - b;
-//                img.at<Vec3b>(row, col)[1] = 255 - g;
-//                img.at<Vec3b>(row, col)[2] = 255 - r;
-//            }
-//        }
-//    }
-//    Mat dst;
-//    bitwise_not(img, dst);
-//    imshow("Image Result", dst);
-    
-    
-    //  增强对比度
     int width = img.cols;
     int height = img.rows;
     int nc = img.channels();
+    
+    
+    // 图像像素位非操作
+    for (int row = 0; row < height; row++) {
+        for (int col = 0; col < width; col++) {
+            if (nc == 1) {
+                int temp = img.at<uchar>(row, col);
+                img.at<uchar>(row, col) = 255 - temp;
+            } else if (nc == 3) {
+                int b = img.at<Vec3b>(row, col)[0];
+                int g = img.at<Vec3b>(row, col)[1];
+                int r = img.at<Vec3b>(row, col)[2];
+                img.at<Vec3b>(row, col)[0] = 255 - b;
+                img.at<Vec3b>(row, col)[1] = 255 - g;
+                img.at<Vec3b>(row, col)[2] = 255 - r;
+            }
+        }
+    }
+    Mat dst;
+    bitwise_not(img, dst);
+    imshow("Image Result1", dst);
+    
+    
+    //  增强对比度
     float alpha = 1.5;
     float beta = 10;
     for (int row = 0; row < height; row++) {
@@ -689,14 +310,12 @@ static void pixelOperation() {
         }
     }
     
-    imshow("Image Result", img);
+    imshow("Image Result2", img);
     waitKey(0);
 }
 
-// 滤波
-static void blurDemo() {
-    String path = "/Users/mash5/Downloads/2.jpeg";
-    
+// 几种滤波调用
+static void blurDemo(const String& path) {
     Mat img = imread(path);
     Mat dst;
     imshow("Image", img);
@@ -761,9 +380,8 @@ static void blurDemo() {
 }
 
 // 腐蚀
-static void erodeDemo() {
-    String path = "/Users/mash5/Downloads/2.jpeg";
-    
+static void erodeDemo(const String& path) {
+    // 函数原理
     Mat img = imread(path);
     imshow("Image", img);
     
@@ -791,7 +409,7 @@ static void erodeDemo() {
     }
     imshow("Image Result", dst);
     
-    
+    // 函数调用
     Mat element = getStructuringElement(MORPH_RECT, Size(3,3));
     Mat dstImg;
     erode(img, dstImg, element);
@@ -801,9 +419,8 @@ static void erodeDemo() {
 }
 
 // 膨胀
-static void dilateDemo() {
-    String path = "/Users/mash5/Downloads/2.jpeg";
-    
+static void dilateDemo(const String& path) {
+    // 函数原理
     Mat img = imread(path);
     imshow("Image", img);
     
@@ -831,7 +448,7 @@ static void dilateDemo() {
     }
     imshow("Image Result", dst);
     
-    
+    // 函数调用
     Mat element = getStructuringElement(MORPH_RECT, Size(3,3));
     Mat dstImg;
     dilate(img, dstImg, element);
@@ -841,9 +458,8 @@ static void dilateDemo() {
 }
 
 // 卷积变换
-static void contrastDemo() {
-    String path = "/Users/mash5/Downloads/1.jpeg";
-    
+static void contrastDemo(const String& path) {
+    // 函数原理
     Mat img = imread(path);
     imshow("Image", img);
     
@@ -863,11 +479,374 @@ static void contrastDemo() {
     }
     imshow("Image Result", dst);
     
-    
+    // 函数调用
     Mat kernel = (Mat_<char>(3, 3) << 0, -1, 0, -1, 5, -1, 0, -1, 0);
     Mat dstImg;
     filter2D(img, dstImg, img.depth(), kernel);
     imshow("Image Contrast", dstImg);
     
     waitKey(0);
+}
+
+// 图像的ROI区域选择与复制
+static void roiCopy(const String& path1, const String& path2) {
+    Mat img1 = imread(path1);
+    Mat img2 = imread(path2);
+    
+    /*
+     Rect(x,y,width,height)//矩形框
+     Rect是一个矩形框。
+     x为起始列；
+     y为起始行；
+     width为宽度；
+     height为高度；
+     
+     Range(start,end)//感兴趣行列范围
+     Range是感兴趣起始行/列与终点行/列。
+     分别用上面两种方法表示图像img从（100,100）到（200,200）的区域为：
+     img(Rect(100, 100, 100, 100));
+     img(Range(100, 200), Range(100,200));
+     */
+    Mat img3 = img1(Rect(10,10, img2.cols, img2.rows));
+    imshow("Image ROI", img3);
+    
+    // 复制img2到ROI区域
+    img2.copyTo(img3, img2);
+    imshow("Image Copy", img1);
+    
+    waitKey(0);
+}
+
+// 图像线性混合
+static void linearBlend(const String& path1, const String& path2) {
+    Mat img1 = imread(path1);
+    Mat img2 = imread(path2);
+    Mat img3 = img1(Rect(10,10, img2.cols, img2.rows));
+    Mat img4;
+    /*
+     void addWeighted(InputArray src1, double alpha, InputArray src2, double beta, double gamma, OutputArray dst, int dtype = -1)
+     src1，表示需要加权的第一个数组，常常填一个Mat
+     alpha，表示第一个数组的权重
+     src2，表示第二个数组，需要和第一个数组拥有相同的尺寸和通道数
+     beta，第二个数组的权重值，值为1-alpha
+     gamma，一个加到权重总和上的标量值。
+     dst，输出的数组，和输入的两个数组拥有相同的尺寸和通道数dst = src1[I] * alpha + src2[I] * beta + gamma
+     dtype，输出阵列的可选深度，有默认值-1。
+     当两个输入数组具有相同深度时，这个参数设置为-1（默认值），即等同于src1.depth()。
+     */
+    addWeighted(img2, 0.5, img3, 0.5, 0, img4);
+    
+    imshow("Image addWeighted", img4);
+    waitKey(0);
+}
+
+// Scharr边缘检测
+static void scharrDemo(const String& path) {
+    Mat img = imread(path);
+    
+    Mat img_gray;
+    cvtColor(img, img_gray, COLOR_BGR2GRAY);
+    // 先高斯滤波
+    GaussianBlur(img_gray, img_gray, Size(3,3), 0);
+    imshow("Image Gray", img_gray);
+    
+    Mat dst_x, abs_dst_x;
+    Scharr(img_gray, dst_x, CV_16S, 1, 0);
+    convertScaleAbs(dst_x, abs_dst_x);
+    
+    Mat dst_y, abs_dst_y;
+    Scharr(img_gray, dst_y, CV_16S, 0, 1);
+    convertScaleAbs(dst_y, abs_dst_y);
+    
+    Mat dst;
+    addWeighted(abs_dst_x, 0.5, abs_dst_y, 0.5, 0, dst);
+    
+    imshow("Scharr", dst);
+    
+    waitKey(0);
+}
+
+// Laplacian边缘检测
+static void laplacianDemo(const String& path) {
+    Mat img = imread(path);
+    
+    Mat img_gray;
+    cvtColor(img, img_gray, COLOR_BGR2GRAY);
+    // 先滤波
+    GaussianBlur(img_gray, img_gray, Size(3,3), 0);
+    // 提高对比度
+    convertScaleAbs(img_gray, img_gray, 2, -100);
+    imshow("Image Gray", img_gray);
+    
+    Mat dst;
+    /*
+     Laplacian二阶导数
+     函数原型：
+     void Laplacian( InputArray src, OutputArray dst, int ddepth, int ksize = 1, double scale = 1, double delta = 0, int borderType = BORDER_DEFAULT);
+     参数详解：
+     src，源图像，单通道8位图像。
+     dst，输出图像，和原图像一样的类型和尺寸。
+     ddepth，输出图像的深度。
+     ksize，用于计算二阶导数的滤波器的孔径尺寸，大小必须为正奇数，且有默认值1.
+     scale，比例因子，有默认值0。
+     delta，结果存入目标图像之前可选的delta值, 有默认值0
+     */
+    Laplacian(img_gray, dst, CV_16S, 3, 1, 0);
+    
+    // 转化为8位图像
+    convertScaleAbs(dst, dst);
+    
+    // 开运算，去白点。
+    Mat element = getStructuringElement(MORPH_RECT, Size(3,3), Point(-1, -1));
+    morphologyEx(dst, dst, MORPH_OPEN, element);
+    
+    imshow("laplacian", dst);
+    
+    // 原图减拉普拉斯
+    subtract(img_gray, dst, dst);
+    imshow("gray - laplacian", dst);
+    
+    waitKey(0);
+    
+}
+
+// Canny边缘检测
+static void cannyDemo(const String& path) {
+    Mat img = imread(path);
+    
+    Mat img_gray;
+    cvtColor(img, img_gray, COLOR_BGR2GRAY);
+    // 先高斯滤波
+    GaussianBlur(img_gray, img_gray, Size(3,3), 0);
+    imshow("Image Gray", img_gray);
+    
+    Mat dstX;
+    Mat kernelX = (Mat_<char>(3, 3) << -1, 0, 1, -2, 0, 2, -1, 0, 1);
+    filter2D(img_gray, dstX, CV_16S, kernelX);
+    
+    Mat dstY;
+    Mat kernelY = (Mat_<char>(3, 3) << -1, -2, -1, 0, 0, 0, 1, 2, 1);
+    filter2D(img_gray, dstY, CV_16S, kernelY);
+    
+    int width = dstX.cols;
+    int height = dstX.rows;
+    Mat dstXY = Mat(height, width, dstX.type());
+    for (int row = 0; row < height; row++) {
+        for (int col = 0; col < width; col++) {
+            int gX = dstX.at<short>(row, col);
+            int gY = dstY.at<short>(row, col);
+            dstXY.at<short>(row, col) = abs(gX) + abs(gY);//sqrt(pow(gX, 2) + pow(gY, 2));
+        }
+    }
+    /*
+     convertScaleAbs函数是OpenCV中的函数，使用线性变换转换输入数组元素成8位无符号整型。
+     函数原型：
+     void convertScaleAbs(InputArray src, OutputArray dst, double alpha = 1, double beta = 0);
+     参数含义：
+     src，源图像
+     dst，输出图像(深度为 8u).
+     scale，乘数因子.
+     shift，原图像元素按比例缩放后添加的值。
+     用于实现对整个图像数组中的每一个元素，进行如下操作：
+     dst(I) = abs(src(I)*scale + shift)
+     */
+    convertScaleAbs(dstXY, dstXY);
+    imshow("filter2D xy diff", dstXY);
+    
+    /*
+     Sobel函数使用扩展的Sobel算子，来计算一阶、二阶、三阶或混合图像的差分
+     函数原型：
+     void Sobel( InputArray src, OutputArray dst, int ddepth, int dx, int dy, int ksize = 3, double scale = 1, double delta = 0, int borderType = BORDER_DEFAULT );
+     参数详解：
+     src，源图像。
+     dst，输出图像。
+     ddepth，输出图像的深度。
+     dx，x方向的差分阶数。
+     dy，y方向的差分阶数。
+     ksize，Sobel核的大小，默认3，必须取1、3、5、7.
+     */
+    Sobel(img_gray, dstX, CV_16S, 1, 0, 3);
+    convertScaleAbs(dstX, dstX);
+    
+    Sobel(img_gray, dstY, CV_16S, 0, 1, 3);
+    convertScaleAbs(dstY, dstY);
+    
+    addWeighted(dstX, 0.5, dstY, 0.5, 0, dstXY);
+    imshow("Sobel xy diff", dstXY);
+    
+    
+    Mat dst;
+    /*
+     函数原型：
+     void Canny( InputArray image, OutputArray edges, double threshold1, double threshold2, int apertureSize = 3, bool L2gradient = false);
+     参数详解：
+     image，源图像，需要为单通道8位图像。
+     edges，输出图像，和原图像一样的类型和尺寸。
+     threshold1，第一个滞后性阈值。
+     threshold2，第二个滞后性阈值。
+     apertureSize，表示应用Sobel算子的孔径大小，默认为3.
+     需要注意的是，阈值1和阈值2两者中较小的值用于边缘连接，较大的值用来控制强边缘的初始段，推荐高低阈值比在2:1到3:1之间。
+     (1) 如果值大于maxVal，则处理为边界
+     (2) 如果值minVal<梯度值<maxVal，再检查是否挨着其他边界点，如果旁边没有边界点，则丢弃，如果连着确定的边界点，则也认为其为边界点。
+     (3) 梯度值<minVal，舍弃。
+     */
+    Canny(img_gray, dst, 50, 120, 3);
+    imshow("Canny", dst);
+    
+    waitKey(0);
+}
+
+// 高斯差边缘检测
+static void gaussianDiff(const String& path) {
+    Mat img = imread(path);
+    imshow("Image", img);
+    
+    Mat img_gray, g1, g2, dst;
+    cvtColor(img, img_gray, COLOR_BGR2GRAY);
+    
+    GaussianBlur(img_gray, g1, Size(5, 5), 0, 0);
+    GaussianBlur(g1, g2, Size(5, 5), 0, 0);
+    // 高斯差
+    subtract(g1, g2, dst);
+    // 归一化数据
+    normalize(dst, dst, 255, 0, NORM_MINMAX);
+    
+    imshow("GaussianDiff", dst);
+    waitKey(0);
+    
+}
+
+// 霍夫直线检测
+static void houghLinesDemo(const String& path) {
+    Mat img = imread(path);
+    
+    // 灰度图
+    Mat img_gray;
+    cvtColor(img, img_gray, COLOR_BGR2GRAY);
+    
+    // 开运算去黑点
+    Mat element = getStructuringElement(MORPH_RECT, Size(13, 13), Point(6, 6));
+    morphologyEx(img_gray, img_gray, MORPH_CLOSE, element);
+    
+    // 边缘检测
+    Canny(img_gray, img_gray, 50, 255, 3);
+    imshow("canny", img_gray);
+    
+    
+    //    vector<Vec2f> lines;
+    //    /*
+    //     函数原型：
+    //     void HoughLines(InputArray image, OutputArray lines, double rho, double theta, int threshold, double srn=0, double stn=0, double min_theta=0, double max_theta=CV_PI)
+    //     参数详解：
+    //     image，输入图像，即源图像，需为8位的单通道二进制图像。
+    //     lines，经过调用HoughLines函数后储存了霍夫线变换检测到线条的输出矢量。
+    //     每一条线由具有两个元素的矢量表示，其中，是离坐标原点((0,0)（也就是图像的左上角）的距离。 是弧度线条旋转角度（0~垂直线，π/2~水平线）。
+    //     rho，以像素为单位的距离精度。另一种形容方式是直线搜索时的进步尺寸的单位半径。PS:Latex中/rho就表示。
+    //     theta，以弧度为单位的角度精度。另一种形容方式是直线搜索时的进步尺寸的单位角度。
+    //     threshold，累加平面的阈值参数，即识别某部分为图中的一条直线时它在累加平面中必须达到的值。大于阈值threshold的线段才可以被检测通过并返回到结果中。
+    //     srn，有默认值0。对于多尺度的霍夫变换，这是第三个参数进步尺寸rho的除数距离。粗略的累加器进步尺寸直接是第三个参数rho，而精确的累加器进步尺寸为rho/srn。
+    //     stn，有默认值0，对于多尺度霍夫变换，srn表示第四个参数进步尺寸的单位角度theta的除数距离。且如果srn和stn同时为0，就表示使用经典的霍夫变换。
+    //     否则，这两个参数应该都为正数。
+    //     min_theta，对于标准和多尺度Hough变换，检查线条的最小角度。必须介于0和max_theta之间。
+    //     max_theta, 对于标准和多尺度Hough变换，检查线条的最大角度。必须介于min_theta和CV_PI之间.
+    //     */
+    //    HoughLines(img_gray, lines, 1, CV_PI / 180, 100, 0, 0);
+    //
+    //    for (int i = 0; i < lines.size(); i++) {
+    //        // 极径
+    //        float rho = lines[i][0];
+    //        // 极角
+    //        float theta = lines[i][1];
+    //        printf("rho %.2f, theta : %.2f\n", rho, theta);
+    //
+    //        Point pt1, pt2;
+    //        double a = cos(theta), b = sin(theta);
+    //        double x0 = a * rho, y0 = b * rho;
+    //        pt1.x = cvRound(x0 + 1000 * (-b));
+    //        pt1.y = cvRound(y0 + 1000 * (a));
+    //        pt2.x = cvRound(x0 - 1000 * (-b));
+    //        pt2.y = cvRound(y0 - 1000 * (a));
+    //
+    //        line(img, pt1, pt2, Scalar(0, 255, 0), 1, LINE_AA);
+    //
+    //    }
+    //    imshow("HoughLines", img);
+    
+    
+    vector<Vec4i> lines_p;
+    /*
+     函数原型：
+     void HoughLinesP(InputArray image, OutputArray lines, double rho, double theta, int threshold, double minLineLength=0, double maxLineGap=0)
+     参数详解：
+     image，输入图像，即源图像，需为8位的单通道二进制图像。
+     lines，经过调用HoughLinesP函数后后存储了检测到的线条的输出矢量，每一条线由具有四个元素的矢量(x_1,y_1, x_2, y_2）  表示，其中，(x_1, y_1)和(x_2, y_2) 是是每个检测到的线段的结束点。
+     rho，以像素为单位的距离精度。另一种形容方式是直线搜索时的进步尺寸的单位半径。
+     theta，以弧度为单位的角度精度。另一种形容方式是直线搜索时的进步尺寸的单位角度。
+     threshold，累加平面的阈值参数，即识别某部分为图中的一条直线时它在累加平面中必须达到的值。大于阈值threshold的线段才可以被检测通过并返回到结果中。
+     minLineLength，有默认值0，表示最低线段的长度，比这个设定参数短的线段就不能被显现出来。
+     maxLineGap，有默认值0，允许将同一行点与点之间连接起来的最大的距离。
+     */
+    HoughLinesP(img_gray, lines_p, 1, CV_PI / 180, 150, 200, 50);
+    for (int i = 0; i < lines_p.size(); i++) {
+        Vec4i l = lines_p[i];
+        if (abs(l[1] - l[3]) > 200) {
+            line(img, Point(l[0],l[1]), Point(l[2],l[3]), Scalar(0, 255, 0), 1, LINE_AA);
+        }
+    }
+    imshow("HoughLinesP", img);
+    
+    waitKey(0);
+}
+
+
+
+// 视频移动目标捕获
+static void movingTargetCapture() {
+    Mat gray;       //当前帧灰度图
+    Mat background; //背景图，格式为CV_32F
+    Mat backImage;  //背景图，格式为CV_8U
+    Mat foreground; //前景图
+    Mat output;
+    double learningRate = 0.8;//输入图像的加权值
+    
+    VideoCapture capture;
+    capture.open(0);
+    while (capture.isOpened()) {
+        Mat frame;
+        capture >> frame;
+        
+        // 获取当前帧灰度图
+        cvtColor(frame, gray, CV_BGR2GRAY);
+        
+        // 第一次把前景当背景
+        if (background.empty()) {
+            gray.convertTo(background, CV_32F);
+        }
+        background.convertTo(backImage, CV_8U);
+        
+        // 计算背景和当前帧差值，获得前景
+        absdiff(backImage, gray, foreground);
+        // 阈值化操作
+        threshold(foreground, output, 30, 255, THRESH_BINARY_INV);
+        
+        /*
+         计算输入图像src和累加器dst的加权和
+         函数原型：
+         void accumulateWeighted(InputArray src, InputOutputArray dst, double alpha, InputArray mask = noArray() );
+         参数详解：
+         src，输入图像，输入图像为1或3通道、8位或32位浮点。。
+         dst，累加器图像，与输入图像的通道数相同，32位或64位浮点。
+         alpha，输入图像的alpha权重。
+         */
+        // 把当前帧累加到背景图中，当下一帧的背景。
+        accumulateWeighted(gray, background, learningRate);
+        
+        imshow("frame", foreground);
+        imshow("result", output);
+        
+        int key = waitKey(10);
+        if (key == 27) {
+            break;
+        }
+    }
 }

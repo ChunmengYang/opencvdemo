@@ -33,10 +33,7 @@ static void on_OpenClose(int,void *);
 static void on_ErodeDilate(int,void *);
 static void on_TopBlackHat(int,void *);
 
-void morp() {
-    // insert code here...
-    
-    String path = "/Users/mash5/Downloads/2.jpeg";
+void morp(const String &path) {
     img = imread(path);
     
     namedWindow("open/close", 1);

@@ -307,6 +307,7 @@
 					/usr/local/lib,
 					"/usr/local/opt/opencv@3/lib",
 					"/usr/local/Cellar/opencv@3/3.4.5_6/lib",
+					"$(SDKROOT)/usr/lib/system",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.mash5.opencv;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -329,6 +330,7 @@
 					/usr/local/lib,
 					"/usr/local/opt/opencv@3/lib",
 					"/usr/local/Cellar/opencv@3/3.4.5_6/lib",
+					"$(SDKROOT)/usr/lib/system",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.mash5.opencv;
 				PRODUCT_NAME = "$(TARGET_NAME)";
