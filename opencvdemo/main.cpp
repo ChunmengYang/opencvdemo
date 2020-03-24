@@ -39,6 +39,7 @@ static void roiCopy(const String& path1, const String& path2);
 static void linearBlend(const String& path1, const String& path2);
 // 几种边缘检测方法
 static void scharrDemo(const String& path);
+static void sobelDemo(const String& path);
 static void laplacianDemo(const String& path);
 static void cannyDemo(const String& path);
 static void gaussianDiff(const String& path);
@@ -540,7 +541,7 @@ static void linearBlend(const String& path1, const String& path2) {
     waitKey(0);
 }
 
-// Scharr边缘检测
+// Scharr算子边缘检测
 static void scharrDemo(const String& path) {
     Mat img = imread(path);
     
@@ -551,17 +552,55 @@ static void scharrDemo(const String& path) {
     imshow("Image Gray", img_gray);
     
     Mat dst_x, abs_dst_x;
-    Scharr(img_gray, dst_x, CV_16S, 1, 0);
+    Scharr(img_gray, dst_x, CV_16S, 1, 0, 3);
     convertScaleAbs(dst_x, abs_dst_x);
     
     Mat dst_y, abs_dst_y;
-    Scharr(img_gray, dst_y, CV_16S, 0, 1);
+    Scharr(img_gray, dst_y, CV_16S, 0, 1, 3);
     convertScaleAbs(dst_y, abs_dst_y);
     
     Mat dst;
     addWeighted(abs_dst_x, 0.5, abs_dst_y, 0.5, 0, dst);
     
     imshow("Scharr", dst);
+    
+    waitKey(0);
+}
+
+// Sobel算子边缘检测
+static void sobelDemo(const String& path) {
+    Mat img = imread(path);
+    
+    Mat img_gray;
+    cvtColor(img, img_gray, COLOR_BGR2GRAY);
+    // 先高斯滤波
+    GaussianBlur(img_gray, img_gray, Size(3,3), 0);
+    imshow("Image Gray", img_gray);
+    
+    /*
+     Sobel函数使用扩展的Sobel算子，来计算一阶、二阶、三阶或混合图像的差分
+     函数原型：
+     void Sobel( InputArray src, OutputArray dst, int ddepth, int dx, int dy, int ksize = 3, double scale = 1, double delta = 0, int borderType = BORDER_DEFAULT );
+     参数详解：
+     src，源图像。
+     dst，输出图像。
+     ddepth，输出图像的深度。
+     dx，x方向的差分阶数。
+     dy，y方向的差分阶数。
+     ksize，Sobel核的大小，默认3，必须取1、3、5、7.
+     */
+    Mat dst_x, abs_dst_x;
+    Sobel(img_gray, dst_x, CV_16S, 1, 0, 3);
+    convertScaleAbs(dst_x, abs_dst_x);
+    
+    Mat dst_y, abs_dst_y;
+    Sobel(img_gray, dst_y, CV_16S, 0, 1, 3);
+    convertScaleAbs(dst_y, abs_dst_y);
+    
+    Mat dst;
+    addWeighted(abs_dst_x, 0.5, abs_dst_y, 0.5, 0, dst);
+    
+    imshow("Sobel", dst);
     
     waitKey(0);
 }
